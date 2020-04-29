@@ -5,37 +5,19 @@
 #include "arduinoFFT.h"
 #include <math.h>
 #include <Stepper.h>
-#include "HashMap.h"
+#include <HashMap.h>
+
+using namespace std;
 
 //EMA Stuff - for filtering
 float EMA_a = 0.2;      //initialization of EMA alpha
 int EMA_S = 0;  
 
-using namespace std;
-
 //Note recognition
 #define A_HERTZ 440
 #define SEMITONE_RATIO pow(2, 1/12.)
-String noteArray[] = {
-    "A","Bb","B","C",
-    "Db","D","Eb","E",
-    "F","Gb","G","Ab"
-};
-
-HashMap<int, String> noteMap[12];
-noteMap[0](0, "A");
-noteMap[1](1, "Bb");
-noteMap[2](2, "B");
-noteMap[3](3, "C");
-noteMap[4](4, "Db");
-noteMap[5](5, "D");
-noteMap[6](6, "Eb");
-noteMap[7](7, "E");
-noteMap[8](8, "F");
-noteMap[9](9, "Gb");
-noteMap[10](10, "G");
-noteMap[11](11, "Ab");
-
+HashType<int,char*> hash_type[12];
+HashMap<int,char*> noteMap = HashMap<int,char*>(hash_type, 12);
 
 //FFT
 #define SAMPLES 128
@@ -53,7 +35,8 @@ double vImag[SAMPLES];
 #define motorPin4  11    // IN4 on the ULN2003 driver 1
 const int stepsPerRevolution = 2048;
 Stepper motor = Stepper(stepsPerRevolution, 8, 10, 9, 11);
- 
+
+//Pin to read audio signal
 unsigned int aReadPin = A0;
 
 //Smoothing Parameters
@@ -64,14 +47,26 @@ double smooth_accel = 0;
 double peak_vel = 0;
 double last_peak = -1;
 
-
-//Initialize serial output, motor speed, signal variables
+//Initialize serial output, motor speed, signal variables, note map
 void setup() {
     Serial.begin(9600);
     sampling_period_us = round(1000000*(1.0/SAMPLING_FREQUENCY));
     motor.setSpeed(5);
     pinMode(A0, INPUT);
     EMA_S = analogRead(aReadPin);
+
+    noteMap[0](0, "A");
+    noteMap[1](1, "Bb");
+    noteMap[2](2, "B");
+    noteMap[3](3, "C");
+    noteMap[4](4, "Db");
+    noteMap[5](5, "D");
+    noteMap[6](6, "Eb");
+    noteMap[7](7, "E");
+    noteMap[8](8, "F");
+    noteMap[9](9, "Gb");
+    noteMap[10](10, "G");
+    noteMap[11](11, "Ab");
 }
  
 void loop() {
@@ -163,11 +158,10 @@ double getIntonation(double inputHertz) {
 }
 
 /**
- * Returns a string representing the note name, preferring flats
+ * Returns a string representing the note name, preferring flats, using the hashmap
  */
 String getNoteName(double inputHertz) {
     int semitones = round(log(inputHertz / A_HERTZ) / log(SEMITONE_RATIO));
     int noteValue = ((semitones % 12) + 12) % 12;
-    //return noteArray[noteValue];
     return noteMap.getValueOf(noteValue);
 }
